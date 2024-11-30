@@ -8,8 +8,6 @@ You can also presss only ` to download an mp3.
 
 Copy paste it into your Tampermonkey and it should work if you open a video and press the keys.
 
-Tampermonkey:
-Microsoft edge:
-https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd
-Google Chrome:
-https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo
+WARNING:
+
+This is violating the YouTube terms of service, so you should just buy YouTube Premium.
