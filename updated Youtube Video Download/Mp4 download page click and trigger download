@@ -1,0 +1,187 @@
+// ==UserScript==
+// @name         Mp4 download page click and trigger download
+// @namespace    http://tampermonkey.net/
+// @version      2025-01-08
+// @description  Redirect to video download page, change the href of <a> to a valid URL, trigger download in a new tab
+// @author       You
+// @match        https://mp4api.ytjar.info/?id*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=ytjar.info
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Function to simulate click
+    function simulateClick(x, y) {
+        const element = document.elementFromPoint(x, y);
+        if (element) {
+            const mouseDownEvent = new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: x,
+                clientY: y
+            });
+            element.dispatchEvent(mouseDownEvent);
+
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: x,
+                clientY: y
+            });
+            element.dispatchEvent(clickEvent);
+            console.log(`Click simulated at (${x}, ${y}) on element:`, element);
+        }
+    }
+
+    simulateClick(20, 20);
+
+    // Function to extract YouTube ID
+    function extractYouTubeID(url) {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.searchParams.get("id");
+        } catch (error) {
+            console.error("Invalid URL:", error);
+            return null;
+        }
+    }
+
+    console.log("URL extracted:", window.location.href);
+
+    // Function to get the video title from YouTube
+    function getYouTubeTitle(videoUrl, callback) {
+        console.log("Fetching video title for:", videoUrl);
+        const apiUrl = `https://www.youtube.com/oembed?url=${videoUrl}&format=json`;
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                console.log("Fetched video title:", data.title);
+                callback(data.title);  // Return the actual title (not encoded or modified)
+            })
+            .catch(error => console.error("Error fetching video title:", error));
+    }
+
+    // Function to sanitize the filename (remove/replace invalid characters)
+    function sanitizeFilename(filename) {
+        const invalidChars = /[<>:"/\\|?*]/g;
+        const sanitized = filename.replace(invalidChars, '_');
+        console.log("Sanitized filename:", sanitized);
+        return sanitized;
+    }
+
+    // Function to trigger the download with custom filename
+    function triggerDownload(url, filename) {
+        // Replace `title=` in the URL with the unencoded `videoTitle`
+        const updatedUrl = url.replace(/title=[^&]*/, `title=${filename}`);
+        const a = document.createElement('a');
+        a.href = updatedUrl;
+        a.download = filename + '.mp4'; // Use the custom filename with .mp4 extension
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        console.log("Triggering download with filename:", filename + '.mp4');
+        a.click(); // Start the download
+        document.body.removeChild(a);
+    }
+
+    setTimeout(function() {
+        const url = window.location.href;
+        const dlLinks = document.querySelectorAll('.dlLink');
+
+        console.log("Found download links:", dlLinks);
+
+        dlLinks.forEach(link => {
+            const hrefValue = link.getAttribute('href');
+            console.log("Original link href:", hrefValue);
+
+            // Check if the href is valid (not empty, not '#' or similar)
+            if (!hrefValue || hrefValue === '#' || hrefValue === '""') {
+                console.log("Invalid href detected, skipping this link.");
+                return; // Skip if href is invalid
+            }
+
+            const videoID = extractYouTubeID(url);
+            console.log("Extracted YouTube ID:", videoID);
+
+            const videoUrl = `https://www.youtube.com/watch?v=${videoID}`;
+            console.log("Constructed video URL:", videoUrl);
+
+            // Fetch the video title using the YouTube API
+            getYouTubeTitle(videoUrl, function(videoTitle) {
+                console.log("Video title from YouTube API:", videoTitle);
+
+                // Sanitize the video title to create a valid filename
+                const sanitizedFilename = sanitizeFilename(videoTitle);
+
+                // Simple transliteration function for Japanese Hiragana/Kanji to Romanji (English)
+                const transliterateJapanese = (japaneseText) => {
+                    const kanaToRoman = {
+                        // Add specific mappings for Hiragana/Katakana as needed
+                    };
+
+                    let romanizedText = '';
+
+                    // Loop through each character and convert to Romanji if it's a Japanese character
+                    for (let char of japaneseText) {
+                        if (kanaToRoman[char]) {
+                            romanizedText += kanaToRoman[char];
+                        } else {
+                            romanizedText += char; // If not in mapping, leave the character as is
+                        }
+                    }
+
+                    return encodeURIComponent(romanizedText); // Ensure URL-safe encoding
+                };
+
+                const romanizedOutput = transliterateJapanese(videoTitle);
+
+                let newHrefValue = `${hrefValue}${romanizedOutput}`;
+                console.log("Modified href with Romanized title:", newHrefValue);
+
+                function isDownloadLink(url) {
+                    const downloadParams = [
+                        'mime=video%2Fmp4',
+                        'ratebypass=yes',
+                        'signature',
+                        'itag',
+                        'dur',
+                        'title'
+                    ];
+
+                    return downloadParams.some(param => url.includes(param));
+                }
+
+                console.log("Is this a download link?", isDownloadLink(newHrefValue));
+
+                if (isDownloadLink(newHrefValue)) {
+                    // Trigger download directly if it's already a valid download link
+                    triggerDownload(newHrefValue, videoTitle);  // Use the sanitized video title as the filename
+                } else {
+                    // If not a download link, open the tab, trigger download, and close the tab
+                    const newTab = window.open(newHrefValue, '_blank');
+                    if (newTab) {
+                        const downloadInterval = setInterval(function() {
+                            try {
+                                const downloadLink = newTab.document.querySelector('a');
+                                if (downloadLink && downloadLink.href && downloadLink.href !== "#") {
+                                    downloadLink.click();
+                                    console.log("Download triggered in new tab");
+                                    clearInterval(downloadInterval); // Stop checking
+                                    newTab.close(); // Close the tab after download
+                                }
+                            } catch (error) {
+                                console.log("Waiting for the new tab to load...");
+                            }
+                        }, 1000); // Check every 1 second
+                    } else {
+                        console.error("Failed to open new tab.");
+                    }
+                }
+            });
+        });
+    }, 1000);
+
+})();
