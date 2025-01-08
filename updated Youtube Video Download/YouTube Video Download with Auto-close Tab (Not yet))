@@ -1,0 +1,71 @@
+// ==UserScript==
+// @name         YouTube Video Download with Auto-close Tab
+// @namespace    http://tampermonkey.net/
+// @version      2024-11-30
+// @description  Automatically open video download and close tab after completion
+// @author       You
+// @match        https://www.youtube.com/watch?v*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    let videoId;
+    let videoIdMatch;
+    let url;
+
+    // Add event listeners for keydown and keyup events
+    document.addEventListener('keydown', (event) => {
+        url = window.location.href;
+
+        function getYouTubeVideoId(url) {
+            videoIdMatch = url.match(/(?:watch\?v=|\/)([a-zA-Z0-9_-]{11})/);
+            return videoIdMatch ? videoIdMatch[1] : null;
+        }
+
+        // Example usage
+        videoId = getYouTubeVideoId(url);
+
+        // Check if the "KanjiMode" key is pressed
+        if (event.key === 'KanjiMode') {
+            const newTab = window.open(`https://mp4api.ytjar.info/?id=${videoId}`, '_blank');
+
+            // Wait for the new tab to load, trigger download and then close the tab
+            setTimeout(function() {
+                // You may need to adapt this based on the structure of the page opened in the new tab
+                const downloadLink = newTab.document.querySelector('.dlLink');
+                if (downloadLink) {
+                    downloadLink.click();  // Trigger the download
+                    console.log("Download triggered in new tab");
+
+                    // Close the tab after 3 seconds (giving enough time for the download to start)
+                    setTimeout(() => {
+                        newTab.close();
+                        console.log("New tab closed after download trigger");
+                    }, 3000);
+                }
+            }, 3000); // Delay to allow the new tab to fully load
+
+        } else if (event.key === '`') {
+            const newTab = window.open(`https://mp3api.ytjar.info/?id=${videoId}`, '_blank');
+
+            // Wait for the new tab to load, trigger download and then close the tab
+            setTimeout(function() {
+                // You may need to adapt this based on the structure of the page opened in the new tab
+                const downloadLink = newTab.document.querySelector('.dlLink');
+                if (downloadLink) {
+                    downloadLink.click();  // Trigger the download
+                    console.log("Download triggered in new tab");
+
+                    // Close the tab after 3 seconds (giving enough time for the download to start)
+                    setTimeout(() => {
+                        newTab.close();
+                        console.log("New tab closed after download trigger");
+                    }, 3000);
+                }
+            }, 3000); // Delay to allow the new tab to fully load
+        }
+    });
+})();
