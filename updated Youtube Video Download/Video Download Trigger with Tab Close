@@ -1,0 +1,48 @@
+// ==UserScript==
+// @name         Video Download Trigger
+// @namespace    http://tampermonkey.net/
+// @version      2025-01-07
+// @description  Automatically trigger video download from Google Video
+// @author       You
+// @match        *.googlevideo.com/videoplayback?expire=*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=googlevideo.com
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const url = window.location.href;
+
+    // Extract the fragment identifier (everything after #)
+    const fragment = url.split("#")[1];
+    const params = new URLSearchParams(fragment);
+
+    // Get the title parameter from the fragment
+    const encodedTitle = params.get("title");
+    const decodedTitle = decodeURIComponent(encodedTitle);
+
+    console.log("Decoded Title:", decodedTitle);
+
+    // Function to trigger the download
+    function triggerDownload(downloadUrl) {
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${decodedTitle}.mp4`; // Name the file using the decoded title
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click(); // Start the download
+        document.body.removeChild(a);
+    }
+
+    // Extract the base URL (without the fragment) for the download
+    const hrefValue = window.location.href;
+
+    // Trigger the download
+    triggerDownload(hrefValue);
+
+    // Close the tab after a short delay to ensure the download starts
+    setTimeout(() => {
+        console.log("Closing the tab...");
+    }, 1000); // Delay of 1 second (adjust if needed)
+})();
